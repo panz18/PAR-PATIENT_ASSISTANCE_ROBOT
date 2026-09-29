@@ -1,1 +1,13 @@
+# ROS build artifacts
+build/
+devel/
+*.pyc
+__pycache__/
 
+# Runtime-generated files — jangan commit
+par_bringup/web/static/emergency.wav
+par_bringup/web/patient_info.json
+
+# IDE / OS
+.vscode/
+.DS_Store
