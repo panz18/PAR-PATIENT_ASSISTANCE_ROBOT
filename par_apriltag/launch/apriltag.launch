@@ -1,0 +1,14 @@
+<launch>
+  <node pkg="apriltag_ros" type="apriltag_ros_continuous_node"
+        name="apriltag_detector" output="log"
+        clear_params="true">
+    <rosparam command="load"
+      file="$(find par_apriltag)/config/settings.yaml"/>
+    <rosparam command="load"
+      file="$(find par_apriltag)/config/tags.yaml"/>
+    <remap from="image_rect"   to="/usb_cam/image_raw"/>
+    <remap from="camera_info"  to="/usb_cam/camera_info"/>
+    <param name="camera_frame"                   value="usb_cam"/>
+    <param name="publish_tag_detections_image"   value="false"/>
+  </node>
+</launch>

@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>par_apriltag</name>
+  <version>1.0.0</version>
+  <description>PAR AprilTag Detection</description>
+  <maintainer email="panz@ubuntu.com">panz</maintainer>
+  <license>MIT</license>
+  <buildtool_depend>catkin</buildtool_depend>
+  <exec_depend>apriltag_ros</exec_depend>
+</package>
