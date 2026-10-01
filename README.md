@@ -36,31 +36,8 @@ An autonomous mobile IV drip stand robot that follows a patient using AprilTag-b
 - espeak-ng (offline emergency voice synthesis)
 
 ## Repository Structure
-PAR-PATIENT_ASSISTANCE_ROBOT/
-├── par_bringup/ # Main ROS package
-│ ├── launch/par_full.launch # Launches the full system
-│ ├── scripts/
-│ │ ├── dashboard.py # Flask + SocketIO web server
-│ │ ├── par_controller.py # AprilTag follow/stop/pause logic
-│ │ ├── vein_detector.py # Vein detection image processing
-│ │ └── pan_tilt.py # Pan/tilt servo control node
-│ ├── web/
-│ │ ├── templates/index.html # Dashboard UI
-│ │ └── static/ # Generated assets (emergency.wav, etc.)
-│ ├── CMakeLists.txt
-│ └── package.xml
-│
-├── par_apriltag/ # AprilTag detection config package
-│ ├── config/
-│ │ ├── tags.yaml
-│ │ └── settings.yaml
-│ ├── package.xml
-│ └── CMakeLists.txt
-│
-├── .gitignore
-├── LICENSE
-└── README.md
-## Setup
+
+## Setup
 
 ```bash
 # Clone into your catkin workspace
