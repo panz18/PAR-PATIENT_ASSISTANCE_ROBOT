@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PAR Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a1420;--bg2:#0f1c2c;--bg3:#152840;--pri:#38bdf8;
+      --pri-dim:rgba(56,189,248,0.14);--border:rgba(56,189,248,0.16);
+      --muted:#6b8299;--text:#eaf2fb;
+      --ok:#34d399;--warn:#fbbf24;--danger:#f87171;
+      --hr:#fb7185;--spo2:#22d3ee}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);
+     font-size:14px}
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);
+        padding:10px 16px;display:flex;justify-content:space-between;
+        align-items:center}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-icon{width:32px;height:32px;border-radius:8px;background:var(--pri-dim);
+            border:1px solid var(--border);display:flex;align-items:center;
+            justify-content:center;font-size:16px;color:var(--pri)}
+.brand-title{font-size:14px;font-weight:700;color:var(--text)}
+.brand-sub{font-size:10px;color:var(--muted)}
+.badge-live{display:flex;align-items:center;gap:5px;font-size:11px;
+            color:var(--ok);background:rgba(52,211,153,0.1);
+            border:1px solid rgba(52,211,153,0.25);padding:3px 10px;
+            border-radius:20px}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--ok);
+     animation:pulse 1.8s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+.wrap{display:grid;grid-template-columns:1.5fr 1fr;gap:10px;
+      max-width:1200px;margin:0 auto;padding:10px}
+@media(max-width:860px){.wrap{grid-template-columns:1fr}}
+.panel{background:var(--bg2);border:1px solid var(--border);
+       border-radius:10px;padding:12px;margin-bottom:10px}
+.hdr{color:var(--pri);font-size:13px;font-weight:700;
+     border-bottom:1px solid var(--border);padding-bottom:8px;
+     margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.cam-box{position:relative;background:#000;border-radius:8px;overflow:hidden;aspect-ratio:4/3}
+.cam-box img{width:100%;height:100%;object-fit:cover;display:block}
+.cam-box canvas{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+.cam-tag{position:absolute;bottom:6px;left:6px;font-size:10px;
+         padding:2px 8px;border-radius:4px;background:rgba(0,0,0,0.6);color:var(--pri)}
+.btn{background:var(--pri-dim);border:1px solid var(--border);
+     color:var(--pri);padding:6px 12px;border-radius:6px;cursor:pointer;
+     font-weight:600;font-size:12px;font-family:inherit}
+.btn.active{background:var(--pri);color:#04101f}
+.btn:disabled{opacity:0.4;cursor:not-allowed}
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--bg3);padding:8px;border-radius:8px;text-align:center;
+      border:1px solid transparent}
+.stat-full{grid-column:1/-1;margin-top:8px}
+.stat.alert{border-color:rgba(248,113,113,0.5)}
+.stat-lbl{font-size:10px;color:var(--muted)}
+.stat-val{font-size:16px;font-weight:700;color:var(--pri);margin-top:2px}
+.stat-val.warn{color:var(--warn)}.stat-val.err{color:var(--danger)}
+.stat-sub{font-size:10px;color:var(--muted);margin-top:2px}
+.pat-row{display:flex;justify-content:space-between;font-size:13px;padding:3px 0}
+.pat-key{color:var(--muted)}
+.tag-card{background:var(--bg3);border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:12px}
+.pill{font-size:10px;padding:2px 7px;border-radius:20px}
+.pill-ok{background:rgba(52,211,153,0.15);color:var(--ok)}
+.pill-warn{background:rgba(251,191,36,0.15);color:var(--warn)}
+.pill-err{background:rgba(248,113,113,0.15);color:var(--danger)}
+.no-tag{text-align:center;color:var(--muted);font-size:12px;padding:12px 0}
+.angle-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;text-align:center}
+.angle-box{background:var(--bg3);padding:8px;border-radius:8px}
+.angle-lbl{font-size:10px;color:var(--muted)}
+.angle-val{font-size:18px;font-weight:700;color:var(--pri)}
+input[type=range]{width:100%;accent-color:var(--pri);margin:4px 0}
+.dpad{display:grid;grid-template-columns:repeat(3,36px);gap:5px;
+      justify-content:center;margin:10px 0}
+.dp{width:36px;height:36px;border-radius:7px;border:1px solid var(--border);
+    background:var(--bg3);color:var(--pri);font-size:14px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center}
+.dp.center{background:var(--pri-dim)}
+.preset-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:8px}
+.ps{padding:5px 2px;border-radius:6px;border:1px solid var(--border);
+    background:var(--bg3);color:var(--muted);font-size:10px;cursor:pointer;
+    text-align:center;font-family:inherit}
+.ps.ideal{background:var(--pri-dim);color:var(--pri);font-weight:700}
+.emg-overlay{display:none;position:fixed;inset:0;z-index:9999;
+  background:rgba(20,10,10,0.7);align-items:center;justify-content:center}
+.emg-overlay.show{display:flex}
+.emg-box{background:#180606;border:2px solid #f87171;border-radius:14px;
+  padding:28px 32px;text-align:center;max-width:380px;width:90%}
+.emg-icon{font-size:48px;margin-bottom:10px}
+.emg-title{font-size:22px;font-weight:700;color:#f87171;margin-bottom:6px}
+.emg-pt{font-size:17px;font-weight:600;color:#fff;margin-bottom:4px}
+.emg-msg{font-size:12px;color:rgba(255,255,255,0.55);margin-bottom:6px}
+.emg-time{font-size:11px;color:rgba(248,113,113,0.6);margin-bottom:18px}
+.emg-dismiss{width:100%;background:#f87171;color:#fff;border:none;
+  padding:10px;border-radius:8px;font-size:13px;font-weight:600;
+  cursor:pointer;font-family:inherit}
+.vit-monitor{background:#000;border-radius:8px;padding:10px 12px;
+  border:1px solid var(--border)}
+.vit-monitor.vit-alert{border-color:rgba(248,113,113,0.7)}
+.vit-top{display:flex;justify-content:space-around;margin-bottom:6px}
+.vit-metric{text-align:center}
+.vit-lbl{font-size:10px;color:var(--muted);letter-spacing:0.05em;font-weight:600}
+.vit-unit{font-size:8px;font-weight:400}
+.vit-val{font-size:32px;font-weight:800;font-family:Consolas,'Courier New',monospace;
+  line-height:1.1;margin-top:2px}
+.vit-hr{color:var(--hr)}
+.vit-spo2{color:var(--spo2)}
+.vit-val.vit-danger{color:var(--danger)}
+.vit-wave{width:100%;height:64px;display:block;background:#000;border-radius:4px;margin-top:4px}
+.vit-log{margin-top:8px;max-height:120px;overflow-y:auto}
+.vit-log-item{display:flex;justify-content:space-between;font-size:11px;
+  color:var(--muted);padding:5px 0;border-bottom:1px solid var(--border)}
+.vit-log-item:last-child{border-bottom:none}
+.vit-log-time{color:var(--text)}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-icon">⚕</div>
+    <div>
+      <div class="brand-title">PAR Dashboard</div>
+      <div class="brand-sub">Patient Assistance Robot — Live Monitoring</div>
+    </div>
+  </div>
+  <div class="badge-live"><span class="dot"></span>LIVE</div>
+</div>
+
+<div class="emg-overlay" id="emg-overlay">
+  <div class="emg-box">
+    <div class="emg-icon">🚨</div>
+    <div class="emg-title">EMERGENCY ALERT</div>
+    <div class="emg-pt" id="emg-pt">-</div>
+    <div class="emg-msg" id="emg-msg">Emergency call button activated.</div>
+    <div class="emg-time" id="emg-time">-</div>
+    <button class="emg-dismiss" onclick="dismissEmergency()">
+      Acknowledged — Dismiss Alert
+    </button>
+  </div>
+</div>
+
+<div class="wrap">
+<div>
+  <div class="panel">
+    <div class="hdr">
+      <span id="cam-title">Camera Feed</span>
+      <div style="display:flex;gap:6px">
+        <button class="btn active" id="mbtn-patient" onclick="setSysMode('patient')">Patient</button>
+        <button class="btn" id="mbtn-vein" onclick="setSysMode('vein')">Vein</button>
+      </div>
+    </div>
+    <div class="cam-box">
+      <img id="cam-feed" src="/stream">
+      <canvas id="cam-overlay"></canvas>
+      <div class="cam-tag" id="cam-badge">Awaiting tag...</div>
+    </div>
+  </div>
+
+  <div class="panel" id="vein-panel" style="display:none">
+    <div class="hdr">Vein Detection <span class="pill pill-ok">AUTO</span></div>
+    <div style="font-size:11px;color:var(--muted)">Sensor akan on-demand — mula automatik bila tab ini dibuka.</div>
+  </div>
+</div>
+
+<div>
+  <div class="panel">
+    <div class="hdr">Patient Info</div>
+    <div class="pat-row"><span class="pat-key">Name</span><span id="pat-name">Loading...</span></div>
+    <div class="pat-row"><span class="pat-key">Bed</span><span id="pat-bed">Loading...</span></div>
+    <button class="btn" style="width:100%;margin-top:8px" onclick="editPatient()">Update Patient</button>
+  </div>
+
+  <div class="panel">
+    <div class="hdr">Robot Follow Status</div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span class="pill pill-err" id="robot-state-pill">STOP</span>
+      <span id="robot-state-msg" style="font-size:12px;color:var(--muted)">Menunggu arahan GO...</span>
+    </div>
+  </div>
+
+  <div class="panel" id="vitals-panel">
+    <div class="hdr">
+      Patient Vitals
+      <span class="pill pill-warn" id="vit-src">SIMULATED</span>
+    </div>
+    <div class="vit-monitor" id="vit-monitor">
+      <div class="vit-top">
+        <div class="vit-metric">
+          <div class="vit-lbl">HR <span class="vit-unit">bpm</span></div>
+          <div class="vit-val vit-hr" id="vit-hr">--</div>
+        </div>
+        <div class="vit-metric">
+          <div class="vit-lbl">SpO2 <span class="vit-unit">%</span></div>
+          <div class="vit-val vit-spo2" id="vit-spo2">--</div>
+        </div>
+      </div>
+      <canvas id="vit-wave" class="vit-wave"></canvas>
+    </div>
+    <div id="vit-status" style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px">
+      Sedia untuk test. Letak jari pada sensor.
+    </div>
+    <div style="display:flex;gap:6px;margin-top:8px">
+      <button class="btn" style="flex:1" id="btn-start-test" onclick="startVitalsTest()">▶ Start Test (30s)</button>
+      <button class="btn" style="flex:1" id="btn-save" onclick="recordVitals()" disabled>💾 Save</button>
+    </div>
+    <div id="vit-log" class="vit-log"></div>
+  </div>
+
+  <div class="panel">
+    <div class="hdr">System Monitor</div>
+    <div class="stats-grid">
+      <div class="stat"><div class="stat-lbl">Temp</div><div class="stat-val" id="s-temp">--°C</div></div>
+      <div class="stat"><div class="stat-lbl">CPU</div><div class="stat-val" id="s-cpu">--%</div></div>
+      <div class="stat"><div class="stat-lbl">RAM</div><div class="stat-val" id="s-ram">--%</div></div>
+      <div class="stat stat-full" id="stat-emg">
+        <div class="stat-lbl">Emergency Status</div>
+        <div class="stat-val ok" id="s-emg">SAFE</div>
+        <div class="stat-sub" id="s-emg-sub">No active emergency</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:8px">
+      IP: <span id="i-ip">-</span> · <span id="i-time">-</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="hdr">AprilTag <span id="tag-count" style="font-weight:400;font-size:11px">0 tag(s)</span></div>
+    <div id="tag-list"><div class="no-tag">No tags detected...</div></div>
+  </div>
+
+  <div class="panel">
+    <div class="hdr">
+      Servo Calibration
+      <div style="display:flex;gap:4px">
+        <button class="btn active" id="srv-man" onclick="setServoMode('manual')" style="padding:3px 8px;font-size:10px">Manual</button>
+        <button class="btn" id="srv-free" onclick="setServoMode('freestyle')" style="padding:3px 8px;font-size:10px">Freestyle</button>
+      </div>
+    </div>
+    <div class="angle-grid">
+      <div class="angle-box"><div class="angle-lbl">PAN</div><div class="angle-val" id="srv-pan-val">90°</div></div>
+      <div class="angle-box"><div class="angle-lbl">TILT</div><div class="angle-val" id="srv-tilt-val">135°</div></div>
+    </div>
+    <input type="range" min="0" max="180" value="90" id="sl-pan" oninput="onServoSlider()">
+    <input type="range" min="45" max="135" value="135" id="sl-tilt" oninput="onServoSlider()">
+    <div class="dpad">
+      <div></div><button class="dp" onclick="srvStep(0,1)">▲</button><div></div>
+      <button class="dp" onclick="srvStep(-1,0)">◀</button>
+      <button class="dp center" onclick="srvPreset(90,135)">★</button>
+      <button class="dp" onclick="srvStep(1,0)">▶</button>
+      <div></div><button class="dp" onclick="srvStep(0,-1)">▼</button><div></div>
+    </div>
+    <div class="preset-grid">
+      <button class="ps" onclick="srvPreset(0,45)">Up Left</button>
+      <button class="ps" onclick="srvPreset(90,45)">Up Center</button>
+      <button class="ps" onclick="srvPreset(180,45)">Up Right</button>
+      <button class="ps" onclick="srvPreset(0,90)">Mid Left</button>
+      <button class="ps" onclick="srvPreset(90,90)">Mid Center</button>
+      <button class="ps" onclick="srvPreset(180,90)">Mid Right</button>
+      <button class="ps" onclick="srvPreset(0,135)">Ideal Left</button>
+      <button class="ps ideal" onclick="srvPreset(90,135)">★ Ideal Front</button>
+      <button class="ps" onclick="srvPreset(180,135)">Ideal Right</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+const socket = io();
+const canvas = document.getElementById('cam-overlay');
+const ctx = canvas.getContext('2d');
+const camImg = document.getElementById('cam-feed');
+let camW = 640, camH = 480;
+let srvStep_ = 5, srvTimer = null;
+
+fetch('/api/get_patient').then(r=>r.json()).then(d=>{
+  document.getElementById('pat-name').textContent = d.name;
+  document.getElementById('pat-bed').textContent = d.bed;
+});
+socket.on('patient_updated', d=>{
+  document.getElementById('pat-name').textContent = d.name;
+  document.getElementById('pat-bed').textContent = d.bed;
+});
+function editPatient(){
+  const n = prompt('Patient name:', document.getElementById('pat-name').textContent);
+  if(!n) return;
+  const b = prompt('Bed / ward number:', document.getElementById('pat-bed').textContent);
+  fetch('/api/set_patient',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name:n,bed:b||'-'})});
+}
+
+function setSysMode(mode){
+  const ci = document.getElementById('cam-feed');
+  if(mode==='vein'){
+    document.getElementById('mbtn-patient').className='btn';
+    document.getElementById('mbtn-vein').className='btn active';
+    document.getElementById('vein-panel').style.display='block';
+    document.getElementById('cam-title').textContent='Vein Detection';
+    setTimeout(()=>{ ci.src='/vein_stream?'+Date.now(); }, 1200);
+  } else {
+    document.getElementById('mbtn-patient').className='btn active';
+    document.getElementById('mbtn-vein').className='btn';
+    document.getElementById('vein-panel').style.display='none';
+    document.getElementById('cam-title').textContent='Camera Feed';
+    ci.src='/stream?'+Date.now();
+  }
+  fetch('/api/set_mode',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({mode})});
+}
+
+socket.on('stats', d=>{
+  const lvl = v => v>=80?'stat-val err':v>=60?'stat-val warn':'stat-val';
+  document.getElementById('s-temp').textContent = d.temp+'°C';
+  document.getElementById('s-temp').className = lvl(d.temp>=70?90:d.temp>=60?70:0);
+  document.getElementById('s-cpu').textContent = d.cpu+'%';
+  document.getElementById('s-cpu').className = lvl(d.cpu);
+  document.getElementById('s-ram').textContent = d.ram+'%';
+  document.getElementById('s-ram').className = lvl(d.ram);
+  document.getElementById('i-ip').textContent = d.ip;
+  document.getElementById('i-time').textContent = d.time;
+});
+
+function resizeCanvas(){
+  canvas.width = camImg.offsetWidth;
+  canvas.height = camImg.offsetHeight;
+}
+function drawTags(tags){
+  resizeCanvas();
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const sx = canvas.width/camW, sy = canvas.height/camH;
+  tags.forEach(t=>{
+    let col = '#34d399';
+    if(t.dist_cm<30) col='#f87171'; else if(t.dist_cm>150) col='#fbbf24';
+    if(t.corners && t.corners.length===4){
+      ctx.strokeStyle=col; ctx.lineWidth=2;
+      ctx.beginPath();
+      t.corners.forEach((c,i)=>{
+        const px=c[0]*sx, py=c[1]*sy;
+        i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+      });
+      ctx.closePath(); ctx.stroke();
+    }
+    const cx=t.px*sx, cy=t.py*sy;
+    ctx.fillStyle=col; ctx.beginPath(); ctx.arc(cx,cy,3,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(cx-30,cy-20,80,16);
+    ctx.fillStyle=col; ctx.font='10px system-ui';
+    ctx.fillText(`ID:${t.id} ${t.dist_cm}cm`, cx-27, cy-8);
+  });
+}
+window.addEventListener('resize', resizeCanvas);
+
+socket.on('tags', d=>{
+  const tags = d.detections || [];
+  camW = d.cam_w || 640; camH = d.cam_h || 480;
+  document.getElementById('tag-count').textContent = tags.length+' tag(s)';
+  const list = document.getElementById('tag-list');
+  if(!tags.length){
+    list.innerHTML = '<div class="no-tag">No tags detected...</div>';
+    document.getElementById('cam-badge').textContent = 'Awaiting tag...';
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    return;
+  }
+  document.getElementById('cam-badge').textContent = tags.length+' tag(s) detected';
+  const pc = t => t.dist_cm<30?'pill-err':t.dist_cm>150?'pill-warn':'pill-ok';
+  list.innerHTML = tags.map(t=>`
+    <div class="tag-card">
+      <div style="display:flex;justify-content:space-between">
+        <b>ID ${t.id}</b><span class="pill ${pc(t)}">${t.dist_status}</span>
+      </div>
+      <div>${t.dist_cm} cm — move <b>${t.direction}</b></div>
+    </div>`).join('');
+  drawTags(tags);
+});
+
+let srvPan=90, srvTilt=135;
+function syncServoUI(){
+  document.getElementById('sl-pan').value = srvPan;
+  document.getElementById('sl-tilt').value = srvTilt;
+  document.getElementById('srv-pan-val').textContent = srvPan+'°';
+  document.getElementById('srv-tilt-val').textContent = srvTilt+'°';
+}
+function onServoSlider(){
+  srvPan = parseInt(document.getElementById('sl-pan').value);
+  srvTilt = parseInt(document.getElementById('sl-tilt').value);
+  syncServoUI();
+  clearTimeout(srvTimer);
+  srvTimer = setTimeout(sendServo, 120);
+}
+function srvStep(dp,dt){
+  srvPan = Math.max(0, Math.min(180, srvPan+dp*srvStep_));
+  srvTilt = Math.max(45, Math.min(135, srvTilt+dt*srvStep_));
+  syncServoUI(); sendServo();
+}
+function srvPreset(p,t){ srvPan=p; srvTilt=t; syncServoUI(); sendServo(); }
+function sendServo(){
+  fetch('/api/pan_tilt',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({cmd:'move',pan:srvPan,tilt:srvTilt})});
+}
+function setServoMode(m){
+  document.getElementById('srv-man').className = 'btn'+(m==='manual'?' active':'');
+  document.getElementById('srv-free').className = 'btn'+(m==='freestyle'?' active':'');
+  fetch('/api/pan_tilt',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({cmd:'set_mode',mode:m})});
+}
+socket.on('pt_state', d=>{
+  if(d.pan!==undefined) srvPan=d.pan;
+  if(d.tilt!==undefined) srvTilt=d.tilt;
+  syncServoUI();
+});
+
+function updateRobotStatus(d){
+  const pill = document.getElementById('robot-state-pill');
+  const msg  = document.getElementById('robot-state-msg');
+  pill.textContent = d.state;
+  msg.textContent  = d.message || '';
+  pill.className = 'pill ' + (
+    d.state === 'GO' ? 'pill-ok' :
+    d.state === 'MISSING' ? 'pill-warn' : 'pill-err');
+}
+socket.on('robot_status', updateRobotStatus);
+fetch('/api/robot_status').then(r=>r.json()).then(updateRobotStatus).catch(()=>{});
+
+const vitCanvas = document.getElementById('vit-wave');
+const vitCtx = vitCanvas.getContext('2d');
+let vitBuf = new Array(150).fill(0);
+
+function resizeVitCanvas(){
+  vitCanvas.width = vitCanvas.offsetWidth;
+  vitCanvas.height = 64;
+}
+function drawVitWave(){
+  vitCtx.clearRect(0,0,vitCanvas.width,vitCanvas.height);
+  vitCtx.strokeStyle = '#38bdf8';
+  vitCtx.lineWidth = 1.5;
+  vitCtx.beginPath();
+  const step = vitCanvas.width / (vitBuf.length-1);
+  vitBuf.forEach((v,i)=>{
+    const x = i*step;
+    const y = vitCanvas.height/2 - v*(vitCanvas.height/2-6);
+    i===0?vitCtx.moveTo(x,y):vitCtx.lineTo(x,y);
+  });
+  vitCtx.stroke();
+}
+
+function setStartBtn(enabled, label){
+  const b = document.getElementById('btn-start-test');
+  b.disabled = !enabled;
+  if(label) b.textContent = label;
+}
+function setSaveBtn(enabled){ document.getElementById('btn-save').disabled = !enabled; }
+function setStatus(text){ document.getElementById('vit-status').textContent = text; }
+
+function startVitalsTest(){
+  setStartBtn(false, '▶ Testing...');
+  setSaveBtn(false);
+  setStatus('Memulakan sensor...');
+  fetch('/api/start_vitals_test', {method:'POST'});
+}
+
+socket.on('vitals', d=>{
+  const hrEl  = document.getElementById('vit-hr');
+  const spEl  = document.getElementById('vit-spo2');
+  const srcEl = document.getElementById('vit-src');
+  const phase = d.phase || 'idle';
+
+  hrEl.textContent = d.hr ? d.hr : '--';
+  spEl.textContent = d.spo2 ? d.spo2 : '--';
+
+  const hrBad = d.hr > 100 || (d.hr > 0 && d.hr < 50);
+  const spBad = d.spo2 > 0 && d.spo2 < 95;
+  hrEl.className = 'vit-val vit-hr' + (hrBad ? ' vit-danger' : '');
+  spEl.className = 'vit-val vit-spo2' + (spBad ? ' vit-danger' : '');
+  document.getElementById('vit-monitor').classList.toggle('vit-alert', hrBad || spBad);
+
+  const isSim = (d.source || 'sim') !== 'live';
+  srcEl.textContent = isSim ? 'SIMULATED' : 'LIVE';
+  srcEl.className = 'pill ' + (isSim ? 'pill-warn' : 'pill-ok');
+
+  vitBuf.push(d.wave || 0);
+  vitBuf.shift();
+  drawVitWave();
+
+  if(phase === 'idle'){
+    setStartBtn(true, '▶ Start Test (30s)');
+    setStatus('Sedia untuk test. Letak jari pada sensor.');
+  } else if(phase === 'testing'){
+    setStartBtn(false); setSaveBtn(false);
+    setStatus(`Mengukur... ${d.remaining}s lagi — jangan gerakkan jari`);
+  } else if(phase === 'done'){
+    setStartBtn(true, '🔁 Test Semula'); setSaveBtn(true);
+    setStatus('Test selesai — tekan Save untuk rekod bacaan ini.');
+  } else if(phase === 'aborted'){
+    setStartBtn(true, '▶ Start Test (30s)'); setSaveBtn(false);
+    setStatus('Jari tertanggal / signal lemah — cuba lagi.');
+  }
+});
+window.addEventListener('resize', resizeVitCanvas);
+
+function renderVitLog(list){
+  const el = document.getElementById('vit-log');
+  if(!list || !list.length){
+    el.innerHTML = '<div class="no-tag" style="padding:6px 0">No readings recorded yet</div>';
+    return;
+  }
+  el.innerHTML = list.slice().reverse().map(r=>`
+    <div class="vit-log-item">
+      <span class="vit-log-time">${r.time}</span>
+      <span>HR ${r.hr} · SpO2 ${r.spo2}%</span>
+    </div>`).join('');
+}
+function recordVitals(){
+  setSaveBtn(false);
+  fetch('/api/vitals_log',{method:'POST'}).then(r=>r.json()).then(d=>{
+    if(d.status === 'ok'){
+      renderVitLog(d.log);
+      setStatus('Bacaan disimpan. Sedia untuk test seterusnya.');
+      setStartBtn(true, '▶ Start Test (30s)');
+    } else {
+      setStatus(d.message || 'Gagal simpan.');
+      setSaveBtn(true);
+    }
+  });
+}
+fetch('/api/vitals_log').then(r=>r.json()).then(d=>renderVitLog(d.slice(-10)));
+
+let emgDismissed     = false;
+let emergencyActive  = false;
+let voiceAlertActive = false;
+let emgSoundTimer    = null;
+let audioUnlocked    = false;
+
+const emgAudio = new Audio();
+emgAudio.preload = 'auto';
+
+document.addEventListener('click', function(){
+  if(!audioUnlocked){
+    try{ new (window.AudioContext||window.webkitAudioContext)().resume(); }catch(e){}
+    emgAudio.play().then(()=>emgAudio.pause()).catch(()=>{});
+    audioUnlocked = true;
+  }
+}, {once:true});
+
+function playBeep(){
+  try{
+    const c = new (window.AudioContext||window.webkitAudioContext)();
+    const osc = c.createOscillator(), gain = c.createGain();
+    osc.connect(gain); gain.connect(c.destination);
+    osc.type = 'square'; osc.frequency.value = 920; gain.gain.value = 0.35;
+    osc.start(); osc.stop(c.currentTime + 0.28);
+  }catch(e){}
+}
+function startBeepSequence(){
+  let count = 0;
+  playBeep();
+  (function nextBeep(){
+    if(count++ >= 7) return;
+    emgSoundTimer = setTimeout(()=>{ playBeep(); nextBeep(); }, 600);
+  })();
+}
+
+function startVoiceLoop(){
+  if(voiceAlertActive) return;
+  voiceAlertActive = true;
+  emgAudio.src = '/static/emergency.wav?t=' + Date.now();
+  emgAudio.onended = () => {
+    if(!voiceAlertActive) return;
+    setTimeout(() => {
+      if(!voiceAlertActive) return;
+      emgAudio.currentTime = 0;
+      emgAudio.play().catch(()=>{});
+    }, 1200);
+  };
+  emgAudio.currentTime = 0;
+  emgAudio.play().catch(()=>{});
+}
+function stopVoiceLoop(){
+  voiceAlertActive = false;
+  emgAudio.onended = null;
+  emgAudio.pause();
+  emgAudio.currentTime = 0;
+  if(emgSoundTimer){ clearTimeout(emgSoundTimer); emgSoundTimer = null; }
+}
+
+socket.on('emergency_alert', function(data){
+  if(!data.active){
+    emergencyActive = false;
+    return;
+  }
+  if(emgDismissed || emergencyActive) return;
+  emergencyActive = true;
+
+  const patient = data.patient || 'Unknown Patient';
+  const bed     = data.bed     || '-';
+  const now     = new Date().toTimeString().slice(0,8);
+
+  document.getElementById('emg-overlay').classList.add('show');
+  document.getElementById('emg-pt').textContent = patient + (bed && bed !== '-' ? '  —  Bed ' + bed : '');
+  document.getElementById('emg-msg').textContent = data.message || 'Emergency call button activated.';
+  document.getElementById('emg-time').textContent = 'Triggered at ' + now;
+
+  document.getElementById('s-emg').textContent = 'EMERGENCY';
+  document.getElementById('s-emg').className = 'stat-val err';
+  document.getElementById('s-emg-sub').textContent = patient;
+  document.getElementById('stat-emg').classList.add('alert');
+
+  startBeepSequence();
+  startVoiceLoop();
+});
+
+function dismissEmergency(){
+  emgDismissed = true;
+  emergencyActive = false;
+  stopVoiceLoop();
+
+  document.getElementById('emg-overlay').classList.remove('show');
+  document.getElementById('s-emg').textContent = 'SAFE';
+  document.getElementById('s-emg').className = 'stat-val ok';
+  document.getElementById('s-emg-sub').textContent = 'No active emergency';
+  document.getElementById('stat-emg').classList.remove('alert');
+
+  setTimeout(() => { emgDismissed = false; }, 12000);
+}
+
+let sockOk = false;
+socket.on('connect', ()=>{ sockOk = true; });
+setInterval(()=>{
+  if(!sockOk){
+    fetch('/api/stats').then(r=>r.json()).then(d=>{
+      document.getElementById('s-temp').textContent = d.temp+'°C';
+      document.getElementById('s-cpu').textContent = d.cpu+'%';
+      document.getElementById('i-ip').textContent = d.ip;
+      document.getElementById('i-time').textContent = d.time;
+    }).catch(()=>{});
+  }
+}, 5000);
+
+resizeCanvas();
+resizeVitCanvas();
+syncServoUI();
+</script>
+</body>
+</html>

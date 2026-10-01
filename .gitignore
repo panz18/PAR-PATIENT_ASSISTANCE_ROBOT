@@ -1,0 +1,8 @@
+build/
+devel/
+*.pyc
+__pycache__/
+par_bringup/web/static/emergency.wav
+par_bringup/web/patient_info.json
+.vscode/
+.DS_Store

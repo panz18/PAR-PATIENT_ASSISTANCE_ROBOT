@@ -1,0 +1,44 @@
+<launch>
+
+  <node name="usb_cam" pkg="usb_cam" type="usb_cam_node"
+        output="log"
+        launch-prefix="/home/panz/par_quiet_cam.sh">
+    <param name="video_device"    value="/dev/video0"/>
+    <param name="image_width"     value="640"/>
+    <param name="image_height"    value="480"/>
+    <param name="pixel_format"    value="mjpeg"/>
+    <param name="camera_frame_id" value="usb_cam"/>
+    <param name="io_method"       value="mmap"/>
+    <param name="framerate"       value="10"/>
+    <param name="camera_info_url"
+      value="file:///home/panz/.ros/camera_info/usb_cam.yaml"/>
+  </node>
+
+  <node name="republish" pkg="image_transport" type="republish"
+        args="raw in:=/usb_cam/image_raw compressed out:=/usb_cam/image_raw"
+        output="log"/>
+
+  <include file="$(find par_apriltag)/launch/apriltag.launch"/>
+
+  <node name="serial_node" pkg="rosserial_python"
+        type="serial_node.py" output="log">
+    <param name="port" value="/dev/ttyUSB0"/>
+    <param name="baud" value="57600"/>
+  </node>
+
+  <!-- VEIN DETECTION: dimulakan on-demand oleh dashboard.py, bukan di sini -->
+
+  <!-- PAN TILT CAMERA -->
+  <node name="pan_tilt" pkg="par_bringup"
+        type="pan_tilt.py" output="screen"/>
+
+
+  <!-- MAX30102 VITALS -->
+  <node name="max30102" pkg="par_bringup"
+        type="max30102.py" output="screen"/>
+
+  <!-- WEB DASHBOARD -->
+  <node name="par_dashboard" pkg="par_bringup"
+        type="dashboard.py" output="screen"/>
+
+</launch>
